@@ -98,10 +98,35 @@ function updateStorageUsage() {
   document.getElementById("storageUsage").textContent = used ? `Storage used: ${bytes} bytes (${kb} KB)` : "LocalStorage empty";
 }
 
-function generateIMEI() {
-  const randomFill = (prefix) => { let imei=prefix; while(imei.length<15) imei+=Math.floor(Math.random()*10); return imei; };
-  const chosenPrefix = imeiPrefixes[Math.floor(Math.random()*imeiPrefixes.length)];
-  document.getElementById("imei").value = randomFill(chosenPrefix);
+async function generateIMEI() {
+  const randomFill = (prefix) => { 
+    let imei = prefix; 
+    while(imei.length < 15) imei += Math.floor(Math.random() * 10); 
+    return imei; 
+  };
+
+  const usedLocal = loadUsedPairs().map(p => p.imei);
+
+  const cloudSnap = await get(ref(db, "usedIMEIs"));
+  const usedCloud = cloudSnap.exists() ? Object.keys(cloudSnap.val()) : [];
+
+  const allUsed = new Set([...usedLocal, ...usedCloud]);
+
+  let newIMEI;
+  let attempts = 0;
+  const maxAttempts = 50;
+
+  do {
+    const prefix = imeiPrefixes[Math.floor(Math.random() * imeiPrefixes.length)];
+    newIMEI = randomFill(prefix);
+    attempts++;
+    if (attempts > maxAttempts) {
+      setStatus("Could not generate a unique IMEI, all used!", "red");
+      return;
+    }
+  } while(allUsed.has(newIMEI));
+
+  document.getElementById("imei").value = newIMEI;
   clearStatus();
 }
 
